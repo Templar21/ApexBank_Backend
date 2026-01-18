@@ -1,4 +1,4 @@
-package com.etz.DTO;
+package com.etz.DTO.Response;
 
 public class RegisterResponse {
     private String message;

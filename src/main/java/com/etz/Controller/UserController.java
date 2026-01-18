@@ -2,7 +2,7 @@ package com.etz.Controller;
 
 
 import com.etz.DTO.Request.RegisterRequest;
-import com.etz.DTO.RegisterResponse;
+import com.etz.DTO.Response.RegisterResponse;
 import com.etz.Service.UserService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -34,6 +34,12 @@ public class UserController {
         } catch (RuntimeException e) {
             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
         }
+    }
+
+    @POST
+    @Path("login")
+    public Response loginUser(){
+        Authentication
     }
 
 
