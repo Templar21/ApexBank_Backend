@@ -9,13 +9,15 @@ import java.util.Date;
 
 public class JwtUtil {
 
-    private static final Key KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private static final String SECRET_STRING = "s9A3kL8QvJmF2xC4R7N0WzZyT1E5bH+q";
+    private static final Key KEY = Keys.hmacShaKeyFor(SECRET_STRING.getBytes());
     private static final long EXPIRATION_TIME = 864_000_000;//1 day
 
 
-    public static String generateToken(String username) {
+    public static String generateToken(String username, int userId) {
         return Jwts.builder()
                 .setSubject(username)
+                .claim("userId",userId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(KEY)
@@ -23,11 +25,11 @@ public class JwtUtil {
     }
 
 
-    public static String getUsername(String token) {
+    public static int getUserIdFromToken(String token) {
         return Jwts.parser()
                 .setSigningKey(KEY)
                 .parseClaimsJws(token)
                 .getBody()
-                .getSubject();
+                .get("userId", Integer.class);
     }
 }

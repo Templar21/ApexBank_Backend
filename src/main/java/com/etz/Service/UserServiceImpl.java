@@ -1,7 +1,9 @@
 package com.etz.Service;
 
+import com.etz.DTO.Request.LoginRequest;
 import com.etz.DTO.Request.RegisterRequest;
 import com.etz.Entity.User;
+import com.etz.Exception.AuthException;
 import com.etz.Utils.DatabaseConnection;
 import com.etz.Utils.JwtUtil;
 import com.etz.Utils.PasswordUtil;
@@ -10,6 +12,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @ApplicationScoped
@@ -50,9 +53,13 @@ public class UserServiceImpl implements UserService {
             int rowsInserted = stmt.executeUpdate();
 
             if (rowsInserted > 0) {
-                // Return a JWT if registration is successful
-                return
-                        JwtUtil.generateToken(registerRequest.getUsername());
+                try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                    if (generatedKeys.next()) {
+                        int userId = generatedKeys.getInt(1);
+                        // Now calling generateToken with TWO arguments
+                        return JwtUtil.generateToken(registerRequest.getUsername(), userId);
+                    }
+                }
             }
         } catch (SQLException e) {
             if (e.getMessage().contains("Duplicate entry")) {
@@ -63,9 +70,32 @@ public class UserServiceImpl implements UserService {
         return null;
     }
 
-
     @Override
-    public void login(User user) {
-        // To be implemented
+    public String login(LoginRequest loginRequest) {
+
+        String sql = "SELECT user_id,username, password FROM user WHERE username = ?";
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, loginRequest.getUsername());
+            ResultSet rs = stmt.executeQuery();
+
+            if (rs.next()) {
+                String storedPassword = rs.getString("password");
+                int userId = rs.getInt("user_id");
+
+                // Verify the hashed password
+                if (PasswordUtil.checkPassword(loginRequest.getPassword(), storedPassword)) {
+                    return JwtUtil.generateToken(loginRequest.getUsername(), userId);
+                }
+            }
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Database error during login");
+        }
+        throw new AuthException("Invalid username or password");
     }
+
 }
