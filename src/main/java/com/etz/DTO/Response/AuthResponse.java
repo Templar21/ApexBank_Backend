@@ -1,15 +1,15 @@
 package com.etz.DTO.Response;
 
-public class RegisterResponse {
+public class AuthResponse {
     private String message;
     private String token;
 
-    public RegisterResponse(String message, String token) {
+    public AuthResponse(String message, String token) {
         this.message = message;
         this.token = token;
     }
 
-    public RegisterResponse() {
+    public AuthResponse() {
     }
 
     public String getMessage() {
