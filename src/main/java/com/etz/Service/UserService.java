@@ -1,6 +1,6 @@
 package com.etz.Service;
 
-import com.etz.DTO.RegisterRequest;
+import com.etz.DTO.Request.RegisterRequest;
 import com.etz.Entity.User;
 
 public interface UserService {

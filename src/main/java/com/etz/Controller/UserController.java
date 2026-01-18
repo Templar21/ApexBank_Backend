@@ -1,7 +1,7 @@
 package com.etz.Controller;
 
 
-import com.etz.DTO.RegisterRequest;
+import com.etz.DTO.Request.RegisterRequest;
 import com.etz.DTO.RegisterResponse;
 import com.etz.Service.UserService;
 import jakarta.inject.Inject;
@@ -14,8 +14,11 @@ import jakarta.ws.rs.core.Response;
 public class UserController {
 
     @Inject
-    private UserService userService;
+    private  UserService userService;
 
+    public UserController() {
+
+    }
 
     @POST
     @Path("register")

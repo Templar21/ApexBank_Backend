@@ -1,29 +1,43 @@
 package com.etz.Service;
 
-import com.etz.DTO.RegisterRequest;
+import com.etz.DTO.Request.RegisterRequest;
 import com.etz.Entity.User;
 import com.etz.Utils.DatabaseConnection;
 import com.etz.Utils.JwtUtil;
 import com.etz.Utils.PasswordUtil;
 import com.etz.Utils.Validation;
+import jakarta.enterprise.context.ApplicationScoped;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+@ApplicationScoped
 public class UserServiceImpl implements UserService {
 
     @Override
     public String register(RegisterRequest registerRequest) {
 
-        //Input validation
-       Validation.isValid("username", registerRequest.getUsername());
-       Validation.isValid("email", registerRequest.getEmail());
-       Validation.isValid("phone_number", registerRequest.getPhone_number());
-       Validation.isValid("password", registerRequest.getPassword());
+        // Input validation - Check for false and throw exception
+        if (!Validation.isValid("username", registerRequest.getUsername())) {
+            throw new RuntimeException("Invalid username format");
+        }
+
+        if (!Validation.isValid("email", registerRequest.getEmail())) {
+            throw new RuntimeException("Invalid email format");
+        }
+
+        if (!Validation.isValid("password", registerRequest.getPassword())) {
+            throw new RuntimeException("Password does not meet security requirements");
+        }
+
+        if (!Validation.isValid("phone_number", registerRequest.getPhone_number())) {
+            throw new RuntimeException("Invalid phone number. Must be 10 digits.");
+        }
+
 
         String hashedPassword = PasswordUtil.hashPassword(registerRequest.getPassword());
-        String sql = "INSERT INTO users (username,phone_number,email,password) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO user (username,phone_number,email,password) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -42,7 +56,7 @@ public class UserServiceImpl implements UserService {
             }
         } catch (SQLException e) {
             if (e.getMessage().contains("Duplicate entry")) {
-                throw new RuntimeException("Username or Email already exists");
+                throw new RuntimeException("Email,Phone or email already exists. Please login instead.");
             }
             e.printStackTrace();
         }

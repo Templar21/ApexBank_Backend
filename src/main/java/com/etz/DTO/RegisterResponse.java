@@ -9,6 +9,9 @@ public class RegisterResponse {
         this.token = token;
     }
 
+    public RegisterResponse() {
+    }
+
     public String getMessage() {
         return message;
     }
