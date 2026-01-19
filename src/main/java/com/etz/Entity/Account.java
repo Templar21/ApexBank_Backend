@@ -28,8 +28,6 @@ public class Account {
         return accountId;
     }
 
-
-
     public void setAccountId(int accountId) {
         this.accountId = accountId;
     }
@@ -74,7 +72,6 @@ public class Account {
         this.createdAt = createdAt;
     }
 
-
     public String getPin() {
    return pin;
     }
@@ -101,10 +98,9 @@ public class Account {
         return prefix + randomNum;
     }
 
-
     // Enum for Transaction Types
     public enum AccountType {
-        savings, current
+        savings, current, SAVINGS, CURRENT
     }
 
     public AccountType getAccountType() {
