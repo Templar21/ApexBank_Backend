@@ -43,7 +43,7 @@ public class UserServiceImpl implements UserService {
         String sql = "INSERT INTO user (username,phone_number,email,password) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(sql,java.sql.Statement.RETURN_GENERATED_KEYS)) {
 
                 stmt.setString(1, registerRequest.getUsername());
                 stmt.setString(2, registerRequest.getPhone_number());
@@ -99,3 +99,4 @@ public class UserServiceImpl implements UserService {
     }
 
 }
+
