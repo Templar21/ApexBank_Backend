@@ -10,12 +10,12 @@ public interface AccountService {
 
     void deposit(String accountNumber, String pin, double amount);
 
-    void withdraw();
+    void withdraw(String accountNumber, String pin, double amount);
 
-    void getBalance();
-
+    double getBalance(String accountNumber);
 
     List<Account> listallAccounts();
 
     List<Account> listAccountsByUserId(int userId);
+
 }
