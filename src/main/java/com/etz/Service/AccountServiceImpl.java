@@ -16,11 +16,91 @@ import java.util.List;
 public class AccountServiceImpl implements AccountService {
 
     @Override
-    public void withdraw() {
+    public void withdraw(String accountNumber, String pin, double amount) {
+        if (amount <= 0) {
+            throw new RuntimeException("Withdrawal amount must be greater than zero");
+        }
+
+        String getAccountSql = "SELECT account_id, pin FROM accounts WHERE account_number = ?";
+
+        String updateBalanceSql = "UPDATE accounts SET balance = balance - ? WHERE account_number = ?";
+
+        String logTransactionSql = "INSERT INTO transactions (account_id, transaction_type, transaction_amount,transaction_status, transaction_date) VALUES (?, 'WITHDRAWAL', ?,'SUCCESSFUL', ?)";
+
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false); // Start Transaction
+
+            try {
+                int accountId = -1;
+                String dbPin = null;
+
+                // Step A: Find the accountId for the given accountNumber
+                try (PreparedStatement getStmt = conn.prepareStatement(getAccountSql)) {
+                    getStmt.setString(1, accountNumber);
+
+                    try (ResultSet rs = getStmt.executeQuery()) {
+                        if (rs.next()) {
+                            accountId = rs.getInt("account_id");
+                            dbPin = rs.getString("pin");
+                        } else {
+                            throw new SQLException("Account not found: " + accountNumber);
+                        }
+                    }
+                }
+
+                // Step B: Verify PIN
+                if (dbPin == null || !dbPin.equals(pin)) {
+                    throw new RuntimeException("Invalid PIN");
+                }
+
+                // Step C: Update the balance
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateBalanceSql)) {
+                    updateStmt.setDouble(1, amount);
+                    updateStmt.setString(2, accountNumber);
+                    updateStmt.executeUpdate();
+                }
+
+                // Step D: Log the transaction using the retrieved accountId
+                try (PreparedStatement logStmt = conn.prepareStatement(logTransactionSql)) {
+                    logStmt.setInt(1, accountId);
+                    logStmt.setDouble(2, amount);
+                    logStmt.setTimestamp(3, new java.sql.Timestamp(System.currentTimeMillis()));
+                    logStmt.executeUpdate();
+                }
+
+                conn.commit(); // Success: Commit all changes
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback(); // Failure: Roll back changes
+                throw e;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Withdrawal failed: " + e.getMessage());
+        }
+
+
     }
 
     @Override
-    public void getBalance() {
+    public double getBalance(String accountNumber) {
+        String sql ="SELECT balance FROM accounts WHERE account_number = ?";
+
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement stmt = connection.prepareStatement(sql))
+        {
+            stmt.setString(1, accountNumber);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Account account = new Account();
+                    account.setBalance(rs.getDouble("balance"));
+                    return account.getBalance();
+                }
+            }
+        }
+        catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
     }
 
     @Override
@@ -45,7 +125,6 @@ public class AccountServiceImpl implements AccountService {
             throw new RuntimeException("Error creating account: " + e.getMessage());
         }
     }
-
 
     @Override
     public void deposit(String accountNumber, String pin, double amount) {
@@ -114,7 +193,6 @@ public class AccountServiceImpl implements AccountService {
         }
     }
 
-
     @Override
     public List<Account> listallAccounts() {
         String sql = "SELECT * FROM accounts";
@@ -146,7 +224,6 @@ public class AccountServiceImpl implements AccountService {
         }
         return accounts;
     }
-
 
     @Override
     public List<Account> listAccountsByUserId(int userId) {
@@ -188,4 +265,3 @@ public class AccountServiceImpl implements AccountService {
     }
 
 }
-
