@@ -2,23 +2,20 @@ package com.etz.Service;
 
 import com.etz.Entity.Account;
 
+import java.util.List;
+
 public interface AccountService {
 
-    void createSavingsAccount(Account account);
+    void createAccount(Account account);
 
-    void deposit();
+    void deposit(String accountNumber, String pin, double amount);
 
     void withdraw();
 
-    void transfer();
-
     void getBalance();
 
-    void getAllAccounts();
 
-    void getAccountById();
+    List<Account> listallAccounts();
 
-    void deleteAccount();
-
-    void updateAccount();
+    List<Account> listAccountsByUserId(int userId);
 }
