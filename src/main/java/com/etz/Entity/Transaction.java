@@ -6,16 +6,18 @@ public class Transaction {
     private String transactionType;
     private double amount;
     private String transactionDate;
+    private double balanceAfterTransaction;
 
     public Transaction() {
     }
 
-    public Transaction(int transactionId, int accountId, String transactionType, double amount, String transactionDate) {
+    public Transaction(int transactionId, int accountId, String transactionType, double amount, String transactionDate, double balanceAfterTransaction) {
         this.transactionId = transactionId;
         this.accountId = accountId;
         this.transactionType = transactionType;
         this.amount = amount;
         this.transactionDate = transactionDate;
+        this.balanceAfterTransaction = balanceAfterTransaction;
     }
 
     public int getTransactionId() {
@@ -58,6 +60,14 @@ public class Transaction {
         this.transactionDate = transactionDate;
     }
 
+    public double getBalanceAfterTransaction() {
+        return balanceAfterTransaction;
+    }
+
+    public void setBalanceAfterTransaction(double balanceAfterTransaction) {
+        this.balanceAfterTransaction = balanceAfterTransaction;
+    }
+
     @Override
     public String toString() {
         return "Transaction{" +
@@ -66,7 +76,7 @@ public class Transaction {
                 ", transactionType='" + transactionType + '\'' +
                 ", amount=" + amount +
                 ", transactionDate='" + transactionDate + '\'' +
+                ", balanceAfterTransaction=" + balanceAfterTransaction +
                 '}';
     }
-
 }
