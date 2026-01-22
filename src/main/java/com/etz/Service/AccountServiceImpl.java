@@ -272,19 +272,22 @@ public class AccountServiceImpl implements AccountService {
         return accounts;
     }
 
+    @Override
     public List<Transaction> getStatement(String accountNumber) {
-        String sql="SELECT a.account_number, t.transaction_id, t.transaction_amount, t.balance_after_transaction, t.transaction_type, t.transaction_date FROM accounts a JOIN transactions t ON a.account_id = t.account_id WHERE a.account_number = ? ORDER BY t.transaction_date DESC LIMIT 5";
+        String sql="SELECT a.account_number, t.transaction_id,t.account_id, t.transaction_amount, t.balance_after_transaction, t.transaction_type, t.transaction_date FROM accounts a JOIN transactions t ON a.account_id = t.account_id WHERE a.account_number = ? ORDER BY t.transaction_date DESC LIMIT 5";
 
         List<Transaction> transactions =  new ArrayList<>();
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement pstmt = connection.prepareStatement(sql))
         {
             pstmt.setString(1, accountNumber);
+
             try (ResultSet rs = pstmt.executeQuery()){
                 while (rs.next()) {
                     Transaction transaction = new Transaction();
                     transaction.setTransactionId(rs.getInt("transaction_id"));
                     transaction.setAccountId(rs.getInt("account_id"));
+                    transaction.setAccountNumber(rs.getString("account_number")); // Set account number
                     transaction.setTransactionType(rs.getString("transaction_type"));
                     transaction.setAmount(rs.getDouble("transaction_amount"));
                     transaction.setTransactionDate(rs.getString("transaction_date"));
@@ -300,8 +303,37 @@ public class AccountServiceImpl implements AccountService {
     return transactions;
     }
 
+    @Override
+    public List<Transaction> getAllStatement(String accountNumber){
+        String sql="SELECT a.account_number, t.transaction_id,t.account_id, t.transaction_amount, t.balance_after_transaction, t.transaction_type, t.transaction_date FROM accounts a JOIN transactions t ON a.account_id = t.account_id WHERE a.account_number = ? ";
+        List<Transaction> transactions =  new ArrayList<>();
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)){
+            pstmt.setString(1, accountNumber);
+
+            try (ResultSet rs = pstmt.executeQuery()){
+                while (rs.next()) {
+                    Transaction transaction = new Transaction();
+
+                    transaction.setTransactionId(rs.getInt("transaction_id"));
+                    transaction.setAccountId(rs.getInt("account_id"));
+                    transaction.setAccountNumber(rs.getString("account_number"));
+                    transaction.setTransactionType(rs.getString("transaction_type"));
+                    transaction.setAmount(rs.getDouble("transaction_amount"));
+                    transaction.setTransactionDate(rs.getString("transaction_date"));
+                    transaction.setBalanceAfterTransaction(rs.getDouble("balance_after_transaction"));
+                    transactions.add(transaction);
+                }
+
+                }
+            }
+        catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return transactions;
+    }
+
 
 
 
 }
-

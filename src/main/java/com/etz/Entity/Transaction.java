@@ -3,6 +3,7 @@ package com.etz.Entity;
 public class Transaction {
     private int transactionId;
     private int accountId;
+    private String accountNumber; // Added accountNumber field
     private String transactionType;
     private double amount;
     private String transactionDate;
@@ -11,9 +12,10 @@ public class Transaction {
     public Transaction() {
     }
 
-    public Transaction(int transactionId, int accountId, String transactionType, double amount, String transactionDate, double balanceAfterTransaction) {
+    public Transaction(int transactionId, int accountId, String accountNumber, String transactionType, double amount, String transactionDate, double balanceAfterTransaction) {
         this.transactionId = transactionId;
         this.accountId = accountId;
+        this.accountNumber = accountNumber;
         this.transactionType = transactionType;
         this.amount = amount;
         this.transactionDate = transactionDate;
@@ -34,6 +36,14 @@ public class Transaction {
 
     public void setAccountId(int accountId) {
         this.accountId = accountId;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
     }
 
     public String getTransactionType() {
@@ -73,6 +83,7 @@ public class Transaction {
         return "Transaction{" +
                 "transactionId=" + transactionId +
                 ", accountId=" + accountId +
+                ", accountNumber='" + accountNumber + '\'' +
                 ", transactionType='" + transactionType + '\'' +
                 ", amount=" + amount +
                 ", transactionDate='" + transactionDate + '\'' +

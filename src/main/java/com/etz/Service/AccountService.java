@@ -21,4 +21,5 @@ public interface AccountService {
 
     List<Transaction> getStatement(String accountNumber);
 
+    List<Transaction> getAllStatement(String accountNumber);
 }
