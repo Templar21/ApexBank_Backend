@@ -1,6 +1,7 @@
 package com.etz.Service;
 
 import com.etz.Entity.Account;
+import com.etz.Entity.Transaction;
 
 import java.util.List;
 
@@ -17,5 +18,7 @@ public interface AccountService {
     List<Account> listallAccounts();
 
     List<Account> listAccountsByUserId(int userId);
+
+    List<Transaction> getStatement(String accountNumber);
 
 }
