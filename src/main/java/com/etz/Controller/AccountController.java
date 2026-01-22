@@ -2,6 +2,7 @@ package com.etz.Controller;
 
 import com.etz.DTO.Request.DepositRequest;
 import com.etz.Entity.Account;
+import com.etz.Entity.Transaction;
 import com.etz.Service.AccountService;
 import com.etz.Utils.JwtUtil;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -143,6 +144,7 @@ public class AccountController {
             return Response.status(Response.Status.UNAUTHORIZED).entity("Invalid token").build();
         }
 
+
         //3.Get UserID from token and get all Accounts associated with userID
         int userID = JwtUtil.getUserIdFromToken(token);
         List<Account> accounts = accountService.listAccountsByUserId(userID);
@@ -150,23 +152,44 @@ public class AccountController {
         for(Account account :accounts){
             if(account.getAccountNumber().equals(depositRequest.getAccountNumber())){
 
-                //Withdraw from account
-                if(accountService.getBalance(depositRequest.getAccountNumber())>=depositRequest.getAmount()){
-                    accountService.withdraw(depositRequest.getAccountNumber(), depositRequest.getPin(), depositRequest.getAmount());
-                }
-                else{
-                    return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Insufficient Funds").build();
+                //Implement withdrawal for savings account
+                if(account.getAccountType().equals(Account.AccountType.SAVINGS)){
+                    //Enforce a minimum balance of 50 after withdrawal
+                    if(accountService.getBalance(depositRequest.getAccountNumber())>=depositRequest.getAmount()+50){
+                        try {
+                            accountService.withdraw(depositRequest.getAccountNumber(), depositRequest.getPin(), depositRequest.getAmount());
+                            return Response.ok("Withdrawal successful.Current balance is "+ accountService.getBalance(depositRequest.getAccountNumber())).build();
+                        } catch (RuntimeException e) {
+                            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+                        }
+                    }
+                    else{
+                        return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Insufficient Funds. Must maintain a minimum balance of $50 after withdrawal").build();
+                    }
                 }
 
-                //Display current balance
-                return Response.ok("Withdrawal successful.Current balance is "+ accountService.getBalance(depositRequest.getAccountNumber())).build();
-            }
+                //Implement Withdrawal for current account
+                //Overdraft limit of -500 for current account
+                if(account.getAccountType().equals(Account.AccountType.CURRENT)){
+                    if(accountService.getBalance(depositRequest.getAccountNumber())>=depositRequest.getAmount()-500){
+                        try {
+                            accountService.withdraw(depositRequest.getAccountNumber(), depositRequest.getPin(), depositRequest.getAmount());
+                            return Response.ok("Withdrawal successful.Current balance is "+ accountService.getBalance(depositRequest.getAccountNumber())).build();
+                        } catch (RuntimeException e) {
+                            return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+                        }
+                    }
+                    else{
+                        return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Insufficient Funds.Overdraft limit is $-500").build();
+                    }
+                }
+
+                }
         }
         return Response.status(Response.Status.NOT_FOUND).entity("Account does not exist or does not belong to you").build();
 
     }
 
-    
     @GET
     @Path("all")
     public List<Account> listallAccounts() {
@@ -222,5 +245,13 @@ public class AccountController {
         }
         return Response.status(Response.Status.NOT_FOUND).entity("Account does not exist or does not belong to you").build();
     }
+
+
+    @GET
+    @Path("statement/{accountNumber}")
+    public List<Transaction> getStatement(@PathParam("accountNumber") String accountNumber) {
+        return accountService.getStatement(accountNumber);
+    }
+
 
 }
