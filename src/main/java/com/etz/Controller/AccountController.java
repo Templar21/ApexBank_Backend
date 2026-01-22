@@ -249,8 +249,26 @@ public class AccountController {
 
     @GET
     @Path("statement/{accountNumber}")
-    public List<Transaction> getStatement(@PathParam("accountNumber") String accountNumber) {
-        return accountService.getStatement(accountNumber);
+    public Response getStatement(@PathParam("accountNumber") String accountNumber) {
+
+        List<Transaction> transactions = accountService.getStatement(accountNumber);
+        if (transactions == null || transactions.isEmpty() || accountNumber.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND).entity("No accounts associated with User").build();
+        }
+        return Response.status(Response.Status.FOUND).entity(transactions).build();
+    }
+
+
+    @GET
+    @Path("allstatement/{accountNumber}")
+    public Response getAllStatement(@PathParam("accountNumber") String accountNumber) {
+        List<Transaction> transactions = accountService.getAllStatement(accountNumber);
+
+        if (transactions == null || transactions.isEmpty() || accountNumber.isEmpty()) {
+            return Response.status(Response.Status.NOT_FOUND).entity("No accounts associated with User").build();
+        }
+        return Response.status(Response.Status.FOUND).entity(transactions).build();
+
     }
 
 
