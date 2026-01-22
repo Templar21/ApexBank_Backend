@@ -1,6 +1,7 @@
 package com.etz.Service;
 
 import com.etz.Entity.Account;
+import com.etz.Entity.Transaction;
 import com.etz.Utils.DatabaseConnection;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -21,11 +22,11 @@ public class AccountServiceImpl implements AccountService {
             throw new RuntimeException("Withdrawal amount must be greater than zero");
         }
 
-        String getAccountSql = "SELECT account_id, pin FROM accounts WHERE account_number = ?";
+        String getAccountSql = "SELECT account_id, pin, balance FROM accounts WHERE account_number = ?";
 
         String updateBalanceSql = "UPDATE accounts SET balance = balance - ? WHERE account_number = ?";
 
-        String logTransactionSql = "INSERT INTO transactions (account_id, transaction_type, transaction_amount,transaction_status, transaction_date) VALUES (?, 'WITHDRAWAL', ?,'SUCCESSFUL', ?)";
+        String logTransactionSql = "INSERT INTO transactions (account_id, transaction_type, transaction_amount,transaction_status, transaction_date, balance_after_transaction) VALUES (?, 'WITHDRAWAL', ?,'SUCCESSFUL', ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection()) {
             conn.setAutoCommit(false); // Start Transaction
@@ -33,6 +34,7 @@ public class AccountServiceImpl implements AccountService {
             try {
                 int accountId = -1;
                 String dbPin = null;
+                double currentBalance = 0.0;
 
                 // Step A: Find the accountId for the given accountNumber
                 try (PreparedStatement getStmt = conn.prepareStatement(getAccountSql)) {
@@ -42,6 +44,7 @@ public class AccountServiceImpl implements AccountService {
                         if (rs.next()) {
                             accountId = rs.getInt("account_id");
                             dbPin = rs.getString("pin");
+                            currentBalance = rs.getDouble("balance");
                         } else {
                             throw new SQLException("Account not found: " + accountNumber);
                         }
@@ -65,6 +68,7 @@ public class AccountServiceImpl implements AccountService {
                     logStmt.setInt(1, accountId);
                     logStmt.setDouble(2, amount);
                     logStmt.setTimestamp(3, new java.sql.Timestamp(System.currentTimeMillis()));
+                    logStmt.setDouble(4, currentBalance - amount);
                     logStmt.executeUpdate();
                 }
 
@@ -133,13 +137,13 @@ public class AccountServiceImpl implements AccountService {
         }
 
         // 1. Query to get accountId and pin
-        String getAccountSql = "SELECT account_id, pin FROM accounts WHERE account_number = ?";
+        String getAccountSql = "SELECT account_id, pin, balance FROM accounts WHERE account_number = ?";
 
         // 2. Query to update balance
         String updateBalanceSql = "UPDATE accounts SET balance = balance + ? WHERE account_number = ?";
 
         // 3. Query to log transaction using account_id
-        String logTransactionSql = "INSERT INTO transactions (account_id, transaction_type, transaction_amount,transaction_status, transaction_date) VALUES (?, 'DEPOSIT', ?,'SUCCESSFUL', ?)";
+        String logTransactionSql = "INSERT INTO transactions (account_id, transaction_type, transaction_amount,transaction_status, transaction_date, balance_after_transaction) VALUES (?, 'DEPOSIT', ?,'SUCCESSFUL', ?, ?)";
 
         try (Connection conn = DatabaseConnection.getConnection()) {
             conn.setAutoCommit(false); // Start Transaction
@@ -147,6 +151,7 @@ public class AccountServiceImpl implements AccountService {
             try {
                 int accountId = -1;
                 String dbPin = null;
+                double currentBalance = 0.0;
 
                 // Step A: Find the accountId for the given accountNumber
                 try (PreparedStatement getStmt = conn.prepareStatement(getAccountSql)) {
@@ -156,6 +161,7 @@ public class AccountServiceImpl implements AccountService {
                         if (rs.next()) {
                             accountId = rs.getInt("account_id");
                             dbPin = rs.getString("pin");
+                            currentBalance = rs.getDouble("balance");
                         } else {
                             throw new SQLException("Account not found: " + accountNumber);
                         }
@@ -179,6 +185,7 @@ public class AccountServiceImpl implements AccountService {
                     logStmt.setInt(1, accountId);
                     logStmt.setDouble(2, amount);
                     logStmt.setTimestamp(3, new java.sql.Timestamp(System.currentTimeMillis()));
+                    logStmt.setDouble(4, currentBalance + amount);
                     logStmt.executeUpdate();
                 }
 
@@ -225,6 +232,7 @@ public class AccountServiceImpl implements AccountService {
         return accounts;
     }
 
+
     @Override
     public List<Account> listAccountsByUserId(int userId) {
 
@@ -264,4 +272,36 @@ public class AccountServiceImpl implements AccountService {
         return accounts;
     }
 
+    public List<Transaction> getStatement(String accountNumber) {
+        String sql="SELECT a.account_number, t.transaction_id, t.transaction_amount, t.balance_after_transaction, t.transaction_type, t.transaction_date FROM accounts a JOIN transactions t ON a.account_id = t.account_id WHERE a.account_number = ? ORDER BY t.transaction_date DESC LIMIT 5";
+
+        List<Transaction> transactions =  new ArrayList<>();
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql))
+        {
+            pstmt.setString(1, accountNumber);
+            try (ResultSet rs = pstmt.executeQuery()){
+                while (rs.next()) {
+                    Transaction transaction = new Transaction();
+                    transaction.setTransactionId(rs.getInt("transaction_id"));
+                    transaction.setAccountId(rs.getInt("account_id"));
+                    transaction.setTransactionType(rs.getString("transaction_type"));
+                    transaction.setAmount(rs.getDouble("transaction_amount"));
+                    transaction.setTransactionDate(rs.getString("transaction_date"));
+                    transaction.setBalanceAfterTransaction(rs.getDouble("balance_after_transaction"));
+                    transactions.add(transaction);
+                }
+            }
+
+        }
+     catch (SQLException e) {
+                throw new RuntimeException(e);
+        }
+    return transactions;
+    }
+
+
+
+
 }
+
