@@ -190,6 +190,7 @@ public class AccountController {
 
     }
 
+
     @GET
     @Path("all")
     public List<Account> listallAccounts() {
@@ -249,14 +250,47 @@ public class AccountController {
 
     @GET
     @Path("statement/{accountNumber}")
-    public Response getStatement(@PathParam("accountNumber") String accountNumber) {
-
-        List<Transaction> transactions = accountService.getStatement(accountNumber);
-        if (transactions == null || transactions.isEmpty() || accountNumber.isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND).entity("No accounts associated with User").build();
+    public Response getStatement(@HeaderParam("Authorization") String authHeader, @PathParam("accountNumber") String accountNumber) {
+        //1.Perform JWT Checks
+        try {
+            if (!authHeader.startsWith("Bearer ") || authHeader == null) {
+                return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
+            }
+        } catch (NullPointerException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
         }
-        return Response.status(Response.Status.FOUND).entity(transactions).build();
+
+        //2.Extract token from header and perform validation
+        String token = authHeader.substring(7);
+        try {
+            JwtUtil.validateToken(token);
+        } catch (ExpiredJwtException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity("Token has expired. Please login again").build();
+        } catch (JwtException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity("Invalid token").build();
+        }
+
+        //3.Get userID from JWT
+        int userID = JwtUtil.getUserIdFromToken(token);
+
+        //4.List all accounts from UserID
+        List<Account> accounts = accountService.listAccountsByUserId(userID);
+
+        //5.Check if the user is found in the List and then proceed to show the transactions
+        for (Account account : accounts) {
+            if (account.getAccountNumber().equals(accountNumber)) {
+
+                List<Transaction> transactions = accountService.getStatement(accountNumber);
+                if (transactions == null || transactions.isEmpty() || accountNumber.isEmpty()) {
+                    return Response.status(Response.Status.NOT_FOUND).entity("No Transactions found for this account").build();
+                }
+
+                return Response.status(Response.Status.FOUND).entity(transactions).build();
+            }
+        }
+        return Response.status(Response.Status.NOT_FOUND).entity("Error.Try again").build();
     }
+
 
 
     @GET
