@@ -5,6 +5,7 @@ import com.etz.Entity.Account;
 import com.etz.Entity.Transaction;
 import com.etz.Service.AccountService;
 import com.etz.Utils.JwtUtil;
+import com.etz.Utils.Validation;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import jakarta.inject.Inject;
@@ -87,8 +88,20 @@ public class AccountController {
     @Path("deposit")
     public Response deposit(@HeaderParam("Authorization") String authHeader, DepositRequest depositRequest) {
 
+        // 1. Perform input validation for the fields even before it gets to the DB
+
+        if (!Validation.isValid("accountNumber", depositRequest.getAccountNumber())) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid account number").build();
+        } else if (!Validation.isValid("pin", depositRequest.getPin())) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid PIN").build();
+        } else if (!Validation.isValid("amount", String.valueOf(depositRequest.getAmount()))) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid amount").build();
+        }
+
+
         //1.Perform JWT Checks
         try {
+
             if (!authHeader.startsWith("Bearer ") || authHeader == null) {
                 return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
             }
@@ -109,17 +122,24 @@ public class AccountController {
         //3.Get UserID from token and get all Accounts associated with userID
         int userID = JwtUtil.getUserIdFromToken(token);
         List<Account> accounts = accountService.listAccountsByUserId(userID);
-        for(Account account :accounts){
-            if(account.getAccountNumber().equals(depositRequest.getAccountNumber())){
 
-                //Deposit into account
-                accountService.deposit(depositRequest.getAccountNumber(), depositRequest.getPin(), depositRequest.getAmount());
-                return Response.ok("Deposit successful").build();
+        for (Account account : accounts) {
+            if (account.getAccountNumber().equals(depositRequest.getAccountNumber())) {
+                try {
+                    //Deposit into account
+                    accountService.deposit(depositRequest.getAccountNumber(), depositRequest.getPin(), depositRequest.getAmount());
+                    return Response.ok("Deposit successful").build();
+                } catch (RuntimeException e) {
+                    return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
+                } catch (Exception e) {
+                    return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(e.getMessage()).build();
+                }
             }
         }
-                return Response.status(Response.Status.NOT_FOUND).entity("Account does not exist or does not belong to you").build();
+        return Response.status(Response.Status.NOT_FOUND).entity("Account does not exist or does not belong to you").build();
 
-        }
+    }
+
 
     @POST
     @Path("withdraw")
@@ -149,42 +169,40 @@ public class AccountController {
         int userID = JwtUtil.getUserIdFromToken(token);
         List<Account> accounts = accountService.listAccountsByUserId(userID);
 
-        for(Account account :accounts){
-            if(account.getAccountNumber().equals(depositRequest.getAccountNumber())){
+        for (Account account : accounts) {
+            if (account.getAccountNumber().equals(depositRequest.getAccountNumber())) {
 
                 //Implement withdrawal for savings account
-                if(account.getAccountType().equals(Account.AccountType.SAVINGS)){
+                if (account.getAccountType().equals(Account.AccountType.SAVINGS)) {
                     //Enforce a minimum balance of 50 after withdrawal
-                    if(accountService.getBalance(depositRequest.getAccountNumber())>=depositRequest.getAmount()+50){
+                    if (accountService.getBalance(depositRequest.getAccountNumber()) >= depositRequest.getAmount() + 50) {
                         try {
                             accountService.withdraw(depositRequest.getAccountNumber(), depositRequest.getPin(), depositRequest.getAmount());
-                            return Response.ok("Withdrawal successful.Current balance is "+ accountService.getBalance(depositRequest.getAccountNumber())).build();
+                            return Response.ok("Withdrawal successful.Current balance is " + accountService.getBalance(depositRequest.getAccountNumber())).build();
                         } catch (RuntimeException e) {
                             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
                         }
-                    }
-                    else{
+                    } else {
                         return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Insufficient Funds. Must maintain a minimum balance of $50 after withdrawal").build();
                     }
                 }
 
                 //Implement Withdrawal for current account
                 //Overdraft limit of -500 for current account
-                if(account.getAccountType().equals(Account.AccountType.CURRENT)){
-                    if(accountService.getBalance(depositRequest.getAccountNumber())>=depositRequest.getAmount()-500){
+                if (account.getAccountType().equals(Account.AccountType.CURRENT)) {
+                    if (accountService.getBalance(depositRequest.getAccountNumber()) >= depositRequest.getAmount() - 500) {
                         try {
                             accountService.withdraw(depositRequest.getAccountNumber(), depositRequest.getPin(), depositRequest.getAmount());
-                            return Response.ok("Withdrawal successful.Current balance is "+ accountService.getBalance(depositRequest.getAccountNumber())).build();
+                            return Response.ok("Withdrawal successful.Current balance is " + accountService.getBalance(depositRequest.getAccountNumber())).build();
                         } catch (RuntimeException e) {
                             return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
                         }
-                    }
-                    else{
+                    } else {
                         return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("Insufficient Funds.Overdraft limit is $-500").build();
                     }
                 }
 
-                }
+            }
         }
         return Response.status(Response.Status.NOT_FOUND).entity("Account does not exist or does not belong to you").build();
 
@@ -192,10 +210,11 @@ public class AccountController {
 
 
     @GET
-    @Path("all")
+    @Path("all") //I will later implement admin role to be able to acess this
     public List<Account> listallAccounts() {
         return accountService.listallAccounts();
     }
+
 
     @GET
     @Path("{id}")
@@ -208,13 +227,14 @@ public class AccountController {
         return Response.status(Response.Status.FOUND).entity(accounts).build();
     }
 
+
     @GET
     @Path("balance/{accountNumber}")
     public Response getBalance(@HeaderParam("Authorization") String authHeader, @PathParam("accountNumber") String accountNumber) {
 
         //1.Perform JWT Checks
         try {
-            if (!authHeader.startsWith("Bearer ") || authHeader == null) {
+            if (!authHeader.startsWith("Bearer ")) {
                 return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
             }
         } catch (NullPointerException e) {
@@ -232,7 +252,7 @@ public class AccountController {
         }
 
         //3.Get userID from JWT
-       int userID=JwtUtil.getUserIdFromToken(token);
+        int userID = JwtUtil.getUserIdFromToken(token);
 
         //4.List all accounts from UserID
         
@@ -254,7 +274,7 @@ public class AccountController {
     public Response getStatement(@HeaderParam("Authorization") String authHeader, @PathParam("accountNumber") String accountNumber) {
         //1.Perform JWT Checks
         try {
-            if (!authHeader.startsWith("Bearer ") || authHeader == null) {
+            if (!authHeader.startsWith("Bearer ")) {
                 return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
             }
         } catch (NullPointerException e) {
@@ -280,29 +300,63 @@ public class AccountController {
         //5.Check if the user is found in the List and then proceed to show the transactions
         for (Account account : accounts) {
             if (account.getAccountNumber().equals(accountNumber)) {
-
                 List<Transaction> transactions = accountService.getStatement(accountNumber);
                 if (transactions == null || transactions.isEmpty() || accountNumber.isEmpty()) {
                     return Response.status(Response.Status.NOT_FOUND).entity("No Transactions found for this account").build();
                 }
-
                 return Response.status(Response.Status.FOUND).entity(transactions).build();
+            } else {
+                return Response.status(Response.Status.NOT_FOUND).entity("Account not found or account does not belong to you").build();
             }
         }
         return Response.status(Response.Status.NOT_FOUND).entity("Error.Try again").build();
     }
 
 
-
     @GET
     @Path("allstatement/{accountNumber}")
-    public Response getAllStatement(@PathParam("accountNumber") String accountNumber) {
-        List<Transaction> transactions = accountService.getAllStatement(accountNumber);
+    public Response getAllStatement(@HeaderParam("Authorization") String authHeader, @PathParam("accountNumber") String accountNumber) {
+        //1.Perform JWT Checks
+        try {
+            if (!authHeader.startsWith("Bearer ")) {
+                return Response.status(Response.Status.UNAUTHORIZED).entity("User not properly authenticated.Login to access this service").build();
+            }
+        } catch (NullPointerException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity("User not properly authenticated.Login to access this service").build();
+        } catch (Exception e) {
 
-        if (transactions == null || transactions.isEmpty() || accountNumber.isEmpty()) {
-            return Response.status(Response.Status.NOT_FOUND).entity("No accounts associated with User").build();
         }
-        return Response.status(Response.Status.FOUND).entity(transactions).build();
+
+        //2.Extract token from header and perform validation
+        String token = authHeader.substring(7);
+        try {
+            JwtUtil.validateToken(token);
+        } catch (ExpiredJwtException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity("Token has expired. Please login again").build();
+        } catch (JwtException e) {
+            return Response.status(Response.Status.UNAUTHORIZED).entity("Invalid token").build();
+        }
+
+
+        //3.Get userID from JWT
+        int userID = JwtUtil.getUserIdFromToken(token);
+
+        //4.List all accounts from UserID
+        List<Account> accounts = accountService.listAccountsByUserId(userID);
+
+        //5.Check if the user is found in the List and then proceed to show the transactions
+        for (Account account : accounts) {
+            if (account.getAccountNumber().equals(accountNumber)) {
+                List<Transaction> transactions = accountService.getAllStatement(accountNumber);
+                if (transactions == null || transactions.isEmpty() || accountNumber.isEmpty()) {
+                    return Response.status(Response.Status.NOT_FOUND).entity("No Transactions found for this account").build();
+                }
+                return Response.status(Response.Status.FOUND).entity(transactions).build();
+            } else {
+                return Response.status(Response.Status.NOT_FOUND).entity("Account not found or account does not belong to you").build();
+            }
+        }
+        return Response.status(Response.Status.NOT_FOUND).entity("Error.Try again").build();
 
     }
 
