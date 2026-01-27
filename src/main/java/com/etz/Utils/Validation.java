@@ -1,5 +1,9 @@
 package com.etz.Utils;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import jakarta.ws.rs.core.Response;
+
 public class Validation {
 
     private static boolean isValidEmail(String email) {
@@ -41,6 +45,30 @@ public class Validation {
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    public static Response jwtValidation(String authHeader) {
+        //1.Check if authorisation is present
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("Missing or invalid Authorization header")
+                    .build();
+        }
+        //2.Extract token from header and perform validation
+        String token = authHeader.substring(7);
+
+        try {
+            JwtUtil.validateToken(token);
+        } catch (ExpiredJwtException e) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("Token has expired. Please login again")
+                    .build();
+        } catch (JwtException e) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity("Invalid token")
+                    .build();
+        }
+        return null;
     }
 
     public static boolean isValid(String field, String value) {

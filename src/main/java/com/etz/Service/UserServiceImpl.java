@@ -2,7 +2,6 @@ package com.etz.Service;
 
 import com.etz.DTO.Request.LoginRequest;
 import com.etz.DTO.Request.RegisterRequest;
-import com.etz.Entity.User;
 import com.etz.Exception.AuthException;
 import com.etz.Utils.DatabaseConnection;
 import com.etz.Utils.JwtUtil;
@@ -88,6 +87,8 @@ public class UserServiceImpl implements UserService {
                 // Verify the hashed password
                 if (PasswordUtil.checkPassword(loginRequest.getPassword(), storedPassword)) {
                     return JwtUtil.generateToken(loginRequest.getUsername(), userId);
+                } else {
+                    throw new AuthException("Invalid username or password");
                 }
             }
         }

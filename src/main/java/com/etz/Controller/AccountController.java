@@ -33,6 +33,18 @@ public class AccountController {
     @Path("create/savings")
     public Response createSavingsAccount(@HeaderParam("Authorization") String authHeader, Account account) {
         try {
+            //Perform input validation
+            if (!Validation.isValid("username", account.getAccountName())) {
+                return Response.status(Response.Status.BAD_REQUEST).entity("Invalid account name").build();
+            }
+            if (!Validation.isValid("amount", String.valueOf(account.getBalance()))) {
+                return Response.status(Response.Status.BAD_REQUEST).entity("Invalid balance").build();
+            }
+            if (!Validation.isValid("pin", account.getPin())) {
+                return Response.status(Response.Status.BAD_REQUEST).entity("Invalid PIN").build();
+            }
+
+
             //1.Extract token from header
             String token = authHeader.substring(7);
 
@@ -87,9 +99,13 @@ public class AccountController {
     @POST
     @Path("deposit")
     public Response deposit(@HeaderParam("Authorization") String authHeader, DepositRequest depositRequest) {
+        //1.Perform JWT Validation
+        Response authCheck = Validation.jwtValidation(authHeader);
+        if (authCheck != null) {
+            return authCheck;
+        }
 
-        // 1. Perform input validation for the fields even before it gets to the DB
-
+        // 2. Perform input validation for the fields even before it gets to the DB
         if (!Validation.isValid("accountNumber", depositRequest.getAccountNumber())) {
             return Response.status(Response.Status.BAD_REQUEST).entity("Invalid account number").build();
         } else if (!Validation.isValid("pin", depositRequest.getPin())) {
@@ -98,37 +114,18 @@ public class AccountController {
             return Response.status(Response.Status.BAD_REQUEST).entity("Invalid amount").build();
         }
 
-
-        //1.Perform JWT Checks
-        try {
-
-            if (!authHeader.startsWith("Bearer ") || authHeader == null) {
-                return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
-            }
-        } catch (NullPointerException e) {
-            return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
-        }
-
-        //2.Extract token from header and perform validation
-        String token = authHeader.substring(7);
-        try {
-            JwtUtil.validateToken(token);
-        } catch (ExpiredJwtException e) {
-            return Response.status(Response.Status.UNAUTHORIZED).entity("Token has expired. Please login again").build();
-        } catch (JwtException e) {
-            return Response.status(Response.Status.UNAUTHORIZED).entity("Invalid token").build();
-        }
-
         //3.Get UserID from token and get all Accounts associated with userID
+        String token = authHeader.substring(7);
         int userID = JwtUtil.getUserIdFromToken(token);
         List<Account> accounts = accountService.listAccountsByUserId(userID);
 
+        //4.Check if the account exists and belongs to the user
         for (Account account : accounts) {
             if (account.getAccountNumber().equals(depositRequest.getAccountNumber())) {
                 try {
-                    //Deposit into account
+                    //5.Deposit into account
                     accountService.deposit(depositRequest.getAccountNumber(), depositRequest.getPin(), depositRequest.getAmount());
-                    return Response.ok("Deposit successful").build();
+                    return Response.ok("Deposit successful.Your current balance is $" + accountService.getBalance(depositRequest.getAccountNumber())).build();
                 } catch (RuntimeException e) {
                     return Response.status(Response.Status.BAD_REQUEST).entity(e.getMessage()).build();
                 } catch (Exception e) {
@@ -137,38 +134,33 @@ public class AccountController {
             }
         }
         return Response.status(Response.Status.NOT_FOUND).entity("Account does not exist or does not belong to you").build();
-
     }
 
 
     @POST
     @Path("withdraw")
     public Response withdraw(@HeaderParam("Authorization") String authHeader, DepositRequest depositRequest) {
-
-        //1.Perform JWT Checks
-        try {
-            if (!authHeader.startsWith("Bearer ") || authHeader == null) {
-                return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
-            }
-        } catch (NullPointerException e) {
-            return Response.status(Response.Status.UNAUTHORIZED).entity("Missing or invalid Authorization header").build();
+        //1.Perform JWT Validation
+        Response authCheck = Validation.jwtValidation(authHeader);
+        if (authCheck != null) {
+            return authCheck;
         }
 
-        //2.Extract token from header and perform validation
-        String token = authHeader.substring(7);
-        try {
-            JwtUtil.validateToken(token);
-        } catch (ExpiredJwtException e) {
-            return Response.status(Response.Status.UNAUTHORIZED).entity("Token has expired. Please login again").build();
-        } catch (JwtException e) {
-            return Response.status(Response.Status.UNAUTHORIZED).entity("Invalid token").build();
+        // 2. Perform input validation for the fields even before it gets to the DB
+        if (!Validation.isValid("accountNumber", depositRequest.getAccountNumber())) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid account number").build();
+        } else if (!Validation.isValid("pin", depositRequest.getPin())) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid PIN").build();
+        } else if (!Validation.isValid("amount", String.valueOf(depositRequest.getAmount()))) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Invalid amount").build();
         }
-
 
         //3.Get UserID from token and get all Accounts associated with userID
+        String token = authHeader.substring(7);
         int userID = JwtUtil.getUserIdFromToken(token);
         List<Account> accounts = accountService.listAccountsByUserId(userID);
 
+        //4.Check if the account exists and belongs to the user
         for (Account account : accounts) {
             if (account.getAccountNumber().equals(depositRequest.getAccountNumber())) {
 

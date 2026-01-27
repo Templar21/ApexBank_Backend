@@ -112,7 +112,6 @@ public class AccountServiceImpl implements AccountService {
         String sql = "INSERT INTO accounts (account_number, balance, account_type, user_id, pin, created_at,account_name) VALUES (?, ?, ?, ?, ?, ?,?)";
 
         try (Connection conn = DatabaseConnection.getConnection(); PreparedStatement stmt = conn.prepareStatement(sql)) {
-
             stmt.setString(1, account.getAccountNumber());
             stmt.setDouble(2, account.getBalance());
             stmt.setString(3, account.getAccountType().name());
