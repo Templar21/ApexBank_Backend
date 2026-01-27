@@ -36,7 +36,7 @@ public class AccountServiceImpl implements AccountService {
                 String dbPin = null;
                 double currentBalance = 0.0;
 
-                // Step A: Find the accountId for the given accountNumber
+                // Step A: Find the accountId, pin, and balance for the given accountNumber
                 try (PreparedStatement getStmt = conn.prepareStatement(getAccountSql)) {
                     getStmt.setString(1, accountNumber);
 
@@ -81,7 +81,6 @@ public class AccountServiceImpl implements AccountService {
             e.printStackTrace();
             throw new RuntimeException("Withdrawal failed: " + e.getMessage());
         }
-
 
     }
 
@@ -231,7 +230,6 @@ public class AccountServiceImpl implements AccountService {
         }
         return accounts;
     }
-
 
     @Override
     public List<Account> listAccountsByUserId(int userId) {
