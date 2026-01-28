@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+
 @ApplicationScoped
 public class AccountServiceImpl implements AccountService {
 
@@ -199,6 +200,143 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Override
+    public void internalTransfer(String fromAccountNumber, String toAccountNumber, double amount, String pin) {
+        //TODO
+    }
+
+    @Override
+    public void credit(String accountNumber, double amount) {
+        if (amount <= 0) {
+            throw new RuntimeException("Transfer amount must be greater than zero");
+        }
+
+        // 1. Query to get an account
+        String getAccountSql = "SELECT account_id,balance FROM accounts WHERE account_number = ?";
+
+        // 2. Query to update balance
+        String updateBalanceSql = "UPDATE accounts SET balance = balance + ? WHERE account_number = ?";
+
+        // 3. Query to log transaction using account_id
+        String logTransactionSql = "INSERT INTO transactions (account_id, transaction_type, transaction_amount,transaction_status, transaction_date, balance_after_transaction) VALUES (?, 'TRANSFER_IN', ?,'SUCCESSFUL', ?, ?)";
+
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false); // Start Transaction
+
+            try {
+                int accountId = -1;
+                double currentBalance = 0.0;
+
+                // Step A: Find the accountId for the given accountNumber
+                try (PreparedStatement getStmt = conn.prepareStatement(getAccountSql)) {
+                    getStmt.setString(1, accountNumber);
+
+                    try (ResultSet rs = getStmt.executeQuery()) {
+                        if (rs.next()) {
+                            accountId = rs.getInt("account_id");
+                            currentBalance = rs.getDouble("balance");
+                        } else {
+                            throw new SQLException("Account not found: " + accountNumber);
+                        }
+                    }
+                }
+
+                // Step C: Update the balance
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateBalanceSql)) {
+                    updateStmt.setDouble(1, amount);
+                    updateStmt.setString(2, accountNumber);
+                    updateStmt.executeUpdate();
+                }
+
+                // Step D: Log the transaction using the retrieved accountId
+                try (PreparedStatement logStmt = conn.prepareStatement(logTransactionSql)) {
+                    logStmt.setInt(1, accountId);
+                    logStmt.setDouble(2, amount);
+                    logStmt.setTimestamp(3, new java.sql.Timestamp(System.currentTimeMillis()));
+                    logStmt.setDouble(4, currentBalance + amount);
+                    logStmt.executeUpdate();
+                }
+
+                conn.commit(); // Success: Commit all changes
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback(); // Failure: Roll back changes
+                throw e;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Failed to credit the account: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void debit(String accountNumber, String pin, double amount) {
+        if (amount <= 0) {
+            throw new RuntimeException("Debit amount must be greater than zero");
+        }
+
+        String getAccountSql = "SELECT account_id,pin, balance FROM accounts WHERE account_number = ?";
+
+        String updateBalanceSql = "UPDATE accounts SET balance = balance - ? WHERE account_number = ?";
+
+        String logTransactionSql = "INSERT INTO transactions (account_id, transaction_type, transaction_amount,transaction_status, transaction_date, balance_after_transaction) VALUES (?, 'TRANSFER_OUT', ?,'SUCCESSFUL', ?, ?)";
+
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false); // Start Transaction
+
+            try {
+                int accountId = -1;
+                String dbPin = null;
+                double currentBalance = 0.0;
+
+                // Step A: Find the accountId, pin, and balance for the given accountNumber
+                try (PreparedStatement getStmt = conn.prepareStatement(getAccountSql)) {
+                    getStmt.setString(1, accountNumber);
+
+                    try (ResultSet rs = getStmt.executeQuery()) {
+                        if (rs.next()) {
+                            accountId = rs.getInt("account_id");
+                            dbPin = rs.getString("pin");
+                            currentBalance = rs.getDouble("balance");
+                        } else {
+                            throw new SQLException("Account not found: " + accountNumber);
+                        }
+                    }
+                }
+
+
+                // Step B: Verify PIN
+                if (dbPin == null || !dbPin.equals(pin)) {
+                    throw new RuntimeException("Invalid PIN");
+                }
+
+                // Step C: Update the balance
+                try (PreparedStatement updateStmt = conn.prepareStatement(updateBalanceSql)) {
+                    updateStmt.setDouble(1, amount);
+                    updateStmt.setString(2, accountNumber);
+                    updateStmt.executeUpdate();
+                }
+
+                // Step D: Log the transaction using the retrieved accountId
+                try (PreparedStatement logStmt = conn.prepareStatement(logTransactionSql)) {
+                    logStmt.setInt(1, accountId);
+                    logStmt.setDouble(2, amount);
+                    logStmt.setTimestamp(3, new java.sql.Timestamp(System.currentTimeMillis()));
+                    logStmt.setDouble(4, currentBalance - amount);
+                    logStmt.executeUpdate();
+                }
+
+                conn.commit(); // Success: Commit all changes
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback(); // Failure: Roll back changes
+                throw e;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Transfer failed: " + e.getMessage());
+        }
+
+    }
+
+    @Override
     public List<Account> listallAccounts() {
         String sql = "SELECT * FROM accounts";
 
@@ -330,7 +468,20 @@ public class AccountServiceImpl implements AccountService {
         return transactions;
     }
 
+    @Override
+    public boolean accountExistsByAccountNumber(String destinationAccount) {
+        String sql = "SELECT 1 FROM accounts WHERE account_number = ?";
 
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement pstmt = connection.prepareStatement(sql)) {
+            pstmt.setString(1, destinationAccount);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                return rs.next();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 
 }
