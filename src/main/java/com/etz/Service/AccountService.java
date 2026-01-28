@@ -15,6 +15,12 @@ public interface AccountService {
 
     double getBalance(String accountNumber);
 
+    void internalTransfer(String fromAccountNumber, String toAccountNumber, double amount, String pin);
+
+    void credit(String accountNumber, double amount);
+
+    void debit(String accountNumber, String pin, double amount);
+
     List<Account> listallAccounts();
 
     List<Account> listAccountsByUserId(int userId);
@@ -22,4 +28,7 @@ public interface AccountService {
     List<Transaction> getStatement(String accountNumber);
 
     List<Transaction> getAllStatement(String accountNumber);
+
+    boolean accountExistsByAccountNumber(String destinationAccount);
+
 }
