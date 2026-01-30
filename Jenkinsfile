@@ -18,6 +18,15 @@ pipeline {
                 sh 'mvn test'
             }
         }
+        
+        stage('Start Backend') {
+            steps {
+                sh '''
+                    nohup mvn spring-boot:run > backend.log 2>&1 &
+                    sleep 20
+                '''
+            }
+        }
 
         stage('Call Backend API') {
             steps {
