@@ -1,10 +1,8 @@
 pipeline {
     agent{
-        docker {
-            image 'maven:3.9.6-eclipse-temurin-17'
-        }
+          tools {
+        maven 'Maven-3.9'
     }
-
 
     environment {
         API_URL = "http://localhost:8080/api/health" // CHANGE to your real API endpoint
